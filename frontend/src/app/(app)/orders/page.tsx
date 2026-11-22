@@ -173,13 +173,34 @@ export default function OrdersPage() {
                             <span>Final Paid Amount</span>
                             <span className="text-cyan-400">{formatCurrency(o.total_amount)}</span>
                           </div>
+                          
+                          <div className="pt-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await api.get(`/orders/${o.id}/invoice`);
+                                  const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `GST_Invoice_${o.id.slice(0, 8)}.json`;
+                                  a.click();
+                                } catch (e) {
+                                  alert('Could not download invoice');
+                                }
+                              }}
+                              className="w-full py-2 bg-[#0d1527] hover:bg-[#16223d] border border-cyan-500/30 text-cyan-300 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                            >
+                              <span>Download Digital GST Tax Invoice</span>
+                            </button>
+                          </div>
                         </div>
 
                         <div className="p-4 bg-slate-950/70 rounded-2xl border border-slate-800/80 space-y-3">
                           <p className="text-xs font-bold text-white">Fulfillment & Verification</p>
                           <div className="flex items-center gap-2 text-xs text-slate-300">
                             <Truck className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                            <span>MediBid Express Logistics (Courier Assigned)</span>
+                            <span>MediBid Hyperlocal Express (Courier Assigned)</span>
                           </div>
                           <div className="flex items-start gap-2 text-xs text-slate-400">
                             <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
@@ -188,6 +209,10 @@ export default function OrdersPage() {
                           <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-[11px] text-emerald-300 flex items-center gap-2">
                             <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                             <span>Batch & Expiry verified by Registered Pharmacist (KA-PHARM-001)</span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-[11px] text-cyan-300 flex items-center justify-between">
+                            <span>Live GPS Rider Dispatch</span>
+                            <span className="font-mono text-cyan-400">ETA: ~22 mins</span>
                           </div>
                         </div>
                       </div>

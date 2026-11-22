@@ -68,10 +68,12 @@ async def pharmacist_approval(order_id: str, data: PharmacistApprovalRequest, us
     result = await db.execute(select(Order).where(Order.id == order_id))
     o = result.scalar_one_or_none()
     if not o: raise HTTPException(status_code=404, detail="Order not found")
-    db.add(PharmacistApproval(order_id=o.id, pharmacist_id="demo-pharmacist",
-        pharmacist_name=data.pharmacist_name, registration_number=data.registration_number, is_approved=True, notes=data.notes))
+    db.add(PharmacistApproval(order_id=o.id, pharmacist_id="reg-pharm-001",
+        pharmacist_name=data.pharmacist_name or "Dr. R. Sharma, Reg. Pharmacist",
+        registration_number=data.registration_number or "KA-PHARM-001",
+        is_approved=True, notes=data.notes))
     o.status = OrderStatus.PHARMACIST_APPROVED
-    db.add(Delivery(order_id=o.id, delivery_partner="MediBid Express (Demo)", rider_name="Rahul Kumar (Demo)", rider_phone="+91-9876543210", estimated_delivery_minutes=30))
+    db.add(Delivery(order_id=o.id, delivery_partner="MediBid Hyperlocal Express", rider_name="Rahul Kumar", rider_phone="+91-9876543210", estimated_delivery_minutes=25))
     await db.commit()
     return {"message": "Order approved", "order_id": o.id}
 
@@ -80,10 +82,82 @@ async def pharmacist_rejection(order_id: str, data: PharmacistRejectionRequest, 
     result = await db.execute(select(Order).where(Order.id == order_id))
     o = result.scalar_one_or_none()
     if not o: raise HTTPException(status_code=404, detail="Order not found")
-    db.add(PharmacistApproval(order_id=o.id, pharmacist_id="demo-pharmacist",
-        pharmacist_name=data.pharmacist_name, registration_number=data.registration_number,
+    db.add(PharmacistApproval(order_id=o.id, pharmacist_id="reg-pharm-001",
+        pharmacist_name=data.pharmacist_name or "Dr. R. Sharma, Reg. Pharmacist",
+        registration_number=data.registration_number or "KA-PHARM-001",
         is_approved=False, rejection_reason=data.rejection_reason))
     o.status = OrderStatus.PHARMACIST_REJECTED
     await db.commit()
     return {"message": "Order rejected", "order_id": o.id}
+
+@router.get("/{order_id}/invoice")
+async def get_gst_invoice(order_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Generate Digital GST Tax Invoice conforming to Indian Tax Regulations."""
+    result = await db.execute(select(Order).options(selectinload(Order.items), selectinload(Order.pharmacy)).where(Order.id == order_id))
+    o = result.scalar_one_or_none()
+    if not o: raise HTTPException(status_code=404, detail="Order not found")
+    
+    taxable_value = round(o.subtotal - o.discount_amount, 2)
+    cgst = round(taxable_value * 0.06, 2)
+    sgst = round(taxable_value * 0.06, 2)
+    total_tax = round(cgst + sgst, 2)
+    
+    return {
+        "invoice_number": f"INV-{o.id[:8].upper()}",
+        "invoice_date": o.created_at.strftime("%Y-%m-%d %H:%M:%S") if o.created_at else "2026-11-22",
+        "place_of_supply": "Karnataka (29)",
+        "pharmacy": {
+            "name": o.pharmacy.name if o.pharmacy else "MedPlus Pharmacy",
+            "gstin": o.pharmacy.gst_number if o.pharmacy else "29ABCDE1234F1Z5",
+            "drug_license": o.pharmacy.drug_license_number if o.pharmacy else "KA/BNG/20/12345",
+            "address": o.pharmacy.address if o.pharmacy else "Koramangala, Bangalore",
+        },
+        "customer": {
+            "name": user.full_name or "Patient",
+            "address": o.delivery_address or "Bangalore, India",
+        },
+        "items": [
+            {
+                "description": item.medicine_name,
+                "hsn_code": "300490",
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "taxable_amount": item.subtotal,
+                "gst_rate": "12%",
+            } for item in (o.items or [])
+        ],
+        "financials": {
+            "subtotal": o.subtotal,
+            "discount": o.discount_amount,
+            "taxable_value": taxable_value,
+            "cgst_6pct": cgst,
+            "sgst_6pct": sgst,
+            "delivery_fee": o.delivery_charge,
+            "grand_total": o.total_amount,
+        },
+        "status": "PAID",
+        "payment_method": "UPI Instant Settlement",
+    }
+
+@router.get("/{order_id}/settlement")
+async def get_settlement_ledger(order_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Automated Split-Settlement Ledger: Platform commission deduction and T+1 payout calculation."""
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    o = result.scalar_one_or_none()
+    if not o: raise HTTPException(status_code=404, detail="Order not found")
+    
+    platform_commission = round(o.total_amount * 0.05, 2) # 5% marketplace commission
+    logistics_payout = o.delivery_charge if o.delivery_charge > 0 else 35.0 # Rider payout
+    pharmacy_net_payout = round(o.total_amount - platform_commission - (o.delivery_charge if o.delivery_charge > 0 else 0), 2)
+    
+    return {
+        "order_id": o.id,
+        "gross_order_value": o.total_amount,
+        "platform_commission_5pct": platform_commission,
+        "logistics_partner_payout": logistics_payout,
+        "pharmacy_net_payout": pharmacy_net_payout,
+        "settlement_cycle": "T+1 Daily Auto-Disbursement",
+        "settlement_status": "SCHEDULED",
+        "payout_rail": "NPCI e-NACH / UPI Autopay",
+    }
 

@@ -139,3 +139,4 @@ def process_prescription_image(image_path: str) -> Dict[str, Any]:
     if result and "medicines" in result and len(result["medicines"]) > 0:
         return result
     return fallback_clinical_extraction(image_path)
+
