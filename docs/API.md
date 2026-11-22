@@ -55,3 +55,4 @@ All secured endpoints require an `Authorization: Bearer <token>` header. Roles s
 | `/api/v1/admin/analytics` | GET | Admin/Public | Platform KPIs, win rates, and liquidity metrics |
 | `/api/v1/admin/pharmacies` | GET | Admin | Pharmacy verification queue |
 | `/api/v1/admin/compliance-exceptions` | GET | Admin | Regulatory and substitution flags |
+

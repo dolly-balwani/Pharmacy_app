@@ -74,3 +74,4 @@ Frontend will be live at `http://localhost:3000`.
 - **Start Command**: `npm start`
 - **Environment Variables**:
   - `NEXT_PUBLIC_API_URL`: `https://your-backend.onrender.com`
+

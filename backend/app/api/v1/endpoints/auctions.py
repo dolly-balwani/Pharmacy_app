@@ -80,9 +80,94 @@ async def create_auction(data: AuctionCreate, user: User = Depends(get_current_u
             db.add(AuctionParticipant(auction_id=auction.id, pharmacy_id=p.id))
             notified += 1
     auction.total_pharmacies_notified = notified
+    await db.flush()
+
+    # Generate realistic simulated competitive bids from notified pharmacies
+    from app.models.prescription import Prescription
+    rx_res = await db.execute(select(Prescription).options(selectinload(Prescription.medicines)).where(Prescription.id == data.prescription_id))
+    rx = rx_res.scalar_one_or_none()
+    med_list = rx.medicines if rx and rx.medicines else []
+    
+    # Default sample items matching prescription
+    sample_items = [
+        {"name": "Betaloc 100mg", "brand": "AstraZeneca", "qty": 30, "base_price": 24.0},
+        {"name": "Dorzolamidum 10mg", "brand": "Trusopt", "qty": 10, "base_price": 35.0},
+        {"name": "Cimetidine 50mg", "brand": "Tagamet", "qty": 30, "base_price": 14.0},
+        {"name": "Oxprelol 50mg", "brand": "Trasicor", "qty": 15, "base_price": 18.0},
+    ]
+
+    p_result = await db.execute(select(Pharmacy).where(Pharmacy.is_active == True, Pharmacy.verification_status == VerificationStatus.VERIFIED).limit(4))
+    active_pharmacies = p_result.scalars().all()
+
+    bid_configs = [
+        {"discount": 22.0, "delivery": 0.0, "minutes": 25, "notes": "Best price guarantee. Free delivery above ₹300."},
+        {"discount": 15.0, "delivery": 25.0, "minutes": 20, "notes": "Express delivery in 20 mins. All brand originals."},
+        {"discount": 28.0, "delivery": 15.0, "minutes": 35, "notes": "Maximum discount on generic equivalents available."},
+        {"discount": 18.0, "delivery": 0.0, "minutes": 30, "notes": "Verified authentic stock directly from manufacturer."},
+    ]
+
+    for idx, p in enumerate(active_pharmacies):
+        cfg = bid_configs[idx % len(bid_configs)]
+        subtotal = 0.0
+        items_to_add = []
+        
+        if med_list:
+            for m in med_list:
+                qty = m.quantity or 10
+                unit_p = round(12.0 + (idx * 1.5), 2)
+                item_sub = round(unit_p * qty, 2)
+                subtotal += item_sub
+                items_to_add.append({
+                    "name": m.medicine_name, "brand": m.brand_name or p.name[:8],
+                    "unit_p": unit_p, "qty": qty, "subtotal": item_sub, "generic": (idx % 2 == 0)
+                })
+        else:
+            for s in sample_items:
+                unit_p = round(s["base_price"] * (1.0 + (idx * 0.05)), 2)
+                item_sub = round(unit_p * s["qty"], 2)
+                subtotal += item_sub
+                items_to_add.append({
+                    "name": s["name"], "brand": s["brand"],
+                    "unit_p": unit_p, "qty": s["qty"], "subtotal": item_sub, "generic": False
+                })
+
+        disc_amount = subtotal * (cfg["discount"] / 100.0)
+        final_price = round(subtotal - disc_amount + cfg["delivery"], 2)
+
+        demo_bid = Bid(
+            auction_id=auction.id,
+            pharmacy_id=p.id,
+            total_price=final_price,
+            discount_percentage=cfg["discount"],
+            delivery_charge=cfg["delivery"],
+            estimated_delivery_minutes=cfg["minutes"],
+            all_medicines_available=True,
+            notes=cfg["notes"]
+        )
+        db.add(demo_bid)
+        await db.flush()
+
+        for it in items_to_add:
+            db.add(BidItem(
+                bid_id=demo_bid.id,
+                medicine_name=it["name"],
+                brand_offered=it["brand"],
+                is_generic=it["generic"],
+                unit_price=it["unit_p"],
+                quantity=it["qty"],
+                subtotal=it["subtotal"],
+                in_stock=True
+            ))
+
+    auction.total_bids_received = len(active_pharmacies)
     await db.commit()
     await db.refresh(auction)
-    return _build_auction(auction)
+    
+    # Reload with bids and items
+    reload_q = await db.execute(select(Auction).options(selectinload(Auction.bids).selectinload(Bid.items), selectinload(Auction.bids).selectinload(Bid.pharmacy)).where(Auction.id == auction.id))
+    loaded_auction = reload_q.scalar_one()
+    bids = [_build_bid(b, b.pharmacy.name if b.pharmacy else None, b.pharmacy.rating if b.pharmacy else None) for b in loaded_auction.bids]
+    return _build_auction(loaded_auction, bids)
 
 @router.get("", response_model=List[AuctionResponse])
 async def list_auctions(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):

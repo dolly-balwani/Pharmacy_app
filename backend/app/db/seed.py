@@ -8,27 +8,27 @@ from app.core.security import get_password_hash
 from sqlalchemy import select
 
 PHARMACY_DATA = [
-    {"uid": "demo-ph-user-001", "email": "pharmacy@medibid.demo", "owner": "Rajesh Kumar",
+    {"uid": "demo-ph-user-001", "email": "pharmacy@medibid.ai", "owner": "Rajesh Kumar",
      "name": "MedPlus Pharmacy - Koramangala", "lat": 12.9340, "lng": 77.6260,
      "addr": "123, 4th Block, Koramangala, Bangalore", "city": "Bangalore", "state": "Karnataka",
      "pin": "560034", "lic": "KA/BNG/20/12345", "gst": "29ABCDE1234F1Z5",
      "ph_name": "Dr. Anand Reddy", "ph_reg": "KA-PHARM-001", "rating": 4.7},
-    {"uid": "demo-ph-user-002", "email": "pharmacy2@medibid.demo", "owner": "Sunita Patel",
+    {"uid": "demo-ph-user-002", "email": "pharmacy2@medibid.ai", "owner": "Sunita Patel",
      "name": "Apollo Pharmacy - HSR Layout", "lat": 12.9116, "lng": 77.6389,
      "addr": "56, 27th Main, HSR Layout, Bangalore", "city": "Bangalore", "state": "Karnataka",
      "pin": "560102", "lic": "KA/BNG/20/12346", "gst": "29ABCDE1234F2Z6",
      "ph_name": "Dr. Meera Iyer", "ph_reg": "KA-PHARM-002", "rating": 4.5},
-    {"uid": "demo-ph-user-003", "email": "pharmacy3@medibid.demo", "owner": "Vikram Singh",
+    {"uid": "demo-ph-user-003", "email": "pharmacy3@medibid.ai", "owner": "Vikram Singh",
      "name": "Netmeds Store - BTM Layout", "lat": 12.9166, "lng": 77.6101,
      "addr": "78, 2nd Stage, BTM Layout, Bangalore", "city": "Bangalore", "state": "Karnataka",
      "pin": "560076", "lic": "KA/BNG/20/12347", "gst": "29ABCDE1234F3Z7",
      "ph_name": "Dr. Suresh Nair", "ph_reg": "KA-PHARM-003", "rating": 4.3},
-    {"uid": "demo-ph-user-004", "email": "pharmacy4@medibid.demo", "owner": "Deepa Murthy",
+    {"uid": "demo-ph-user-004", "email": "pharmacy4@medibid.ai", "owner": "Deepa Murthy",
      "name": "Wellness Forever - Jayanagar", "lat": 12.9250, "lng": 77.5938,
      "addr": "34, 11th Main, Jayanagar 4th Block, Bangalore", "city": "Bangalore", "state": "Karnataka",
      "pin": "560041", "lic": "KA/BNG/20/12348", "gst": "29ABCDE1234F4Z8",
      "ph_name": "Dr. Kavita Hegde", "ph_reg": "KA-PHARM-004", "rating": 4.8},
-    {"uid": "demo-ph-user-005", "email": "pharmacy5@medibid.demo", "owner": "Arun Menon",
+    {"uid": "demo-ph-user-005", "email": "pharmacy5@medibid.ai", "owner": "Arun Menon",
      "name": "1mg Store - Indiranagar", "lat": 12.9784, "lng": 77.6408,
      "addr": "90, 100 Feet Road, Indiranagar, Bangalore", "city": "Bangalore", "state": "Karnataka",
      "pin": "560038", "lic": "KA/BNG/20/12349", "gst": "29ABCDE1234F5Z9",
@@ -53,26 +53,26 @@ async def seed_database():
     print("Tables created.")
     
     async with async_session() as db:
-        result = await db.execute(select(User).where(User.email == "customer@medibid.demo"))
+        result = await db.execute(select(User).where(User.email == "customer@medibid.ai"))
         if result.scalar_one_or_none():
             print("Already seeded.")
             return
 
-        print("Hashing demo password once...")
-        demo_hash = get_password_hash("demo123456")
+        print("Hashing password...")
+        demo_hash = get_password_hash("password123")
         print("Password hashed.")
 
         # Customer
-        customer = User(id="demo-customer-001", email="customer@medibid.demo",
+        customer = User(id="cust-001", email="customer@medibid.ai",
             hashed_password=demo_hash, full_name="Priya Sharma",
             phone="+91-9876543210", role=UserRole.CUSTOMER)
         db.add(customer)
-        db.add(CustomerProfile(user_id="demo-customer-001", address="42, MG Road, Koramangala",
+        db.add(CustomerProfile(user_id="cust-001", address="42, MG Road, Koramangala",
             city="Bangalore", state="Karnataka", pincode="560034", latitude="12.9352", longitude="77.6245"))
 
         # Admin
-        db.add(User(id="demo-admin-001", email="admin@medibid.demo",
-            hashed_password=demo_hash, full_name="Admin User",
+        db.add(User(id="admin-001", email="admin@medibid.ai",
+            hashed_password=demo_hash, full_name="Compliance Officer",
             phone="+91-9876543211", role=UserRole.ADMIN))
 
         # Pharmacies

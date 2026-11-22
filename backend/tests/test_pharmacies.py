@@ -14,3 +14,4 @@ async def test_nearby_pharmacies(client):
     data = res.json()
     assert len(data) > 0
     assert "distance_km" in data[0]
+

@@ -19,3 +19,4 @@
 - **CORS Constraints**: Explicit origin whitelist prevents cross-site request abuse.
 - **Payload Sanitization**: Pydantic v2 validates all incoming payloads with strict type constraints.
 - **File Validation**: MIME-type and size checks restrict uploads to JPG, PNG, and PDF formats under 10MB.
+

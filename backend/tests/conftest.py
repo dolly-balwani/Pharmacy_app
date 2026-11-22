@@ -21,3 +21,4 @@ def pharmacy_token():
 @pytest.fixture
 def admin_token():
     return create_access_token({"sub": "demo-admin-001", "role": "admin"})
+

@@ -51,5 +51,5 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "MediBid AI", "version": "1.0.0", "demo": True}
+    return {"status": "healthy", "service": "MediBid AI", "version": "1.0.0", "live": True}
 

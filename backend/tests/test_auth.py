@@ -32,3 +32,4 @@ async def test_get_me(client, customer_token):
     data = res.json()
     assert data["email"] == "customer@medibid.demo"
     assert data["role"] == "customer"
+

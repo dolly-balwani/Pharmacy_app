@@ -18,3 +18,4 @@ async def test_admin_analytics(client):
     assert "total_customers" in data
     assert "verified_pharmacies" in data
     assert data["verified_pharmacies"] >= 5
+
