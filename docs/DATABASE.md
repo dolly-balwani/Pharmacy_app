@@ -47,3 +47,4 @@ erDiagram
 18. **ai_execution_logs**: Chronological audit trail of agent workflows.
 19. **compliance_exceptions**: Regulatory flags requiring human sign-off.
 20. **notifications**: In-app notifications for order and bid alerts.
+

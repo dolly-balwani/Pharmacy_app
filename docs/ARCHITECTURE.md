@@ -69,3 +69,4 @@ flowchart TD
 
 ### AI Orchestrator Layer
 - **Agent Coordination**: 8 dedicated agent roles handling vision extraction, geospatial filtering, price validation, compliance audits, logistics dispatch, and admin summaries.
+
