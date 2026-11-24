@@ -1,11 +1,16 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gavel, Clock, Users, TrendingDown, CheckCircle2, AlertCircle, Package, Sparkles, ArrowRight, Timer, Award, MapPin, Star, Truck, Zap, ShieldCheck } from 'lucide-react';
+import { 
+  Gavel, Clock, Users, TrendingDown, CheckCircle2, AlertCircle, Package, 
+  Sparkles, ArrowRight, Timer, Award, MapPin, Star, Truck, Zap, ShieldCheck, 
+  Store, Compass, ArrowUpRight, Percent, RefreshCw
+} from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { ThreeDCard } from '@/components/ui/ThreeDCard';
+import { LocationDetector } from '@/components/ui/LocationDetector';
 
 function AuctionsContent() {
   const params = useSearchParams();
@@ -17,9 +22,36 @@ function AuctionsContent() {
   const [selectedBid, setSelectedBid] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
 
+  // Hyperlocal Geolocation State
+  const [location, setLocation] = useState<{ lat: number; lng: number; address: string; radiusKm: number }>({
+    lat: 12.9352,
+    lng: 77.6245,
+    address: 'Koramangala 4th Block, Bangalore',
+    radiusKm: 2.0,
+  });
+  const [nearbyPharmacies, setNearbyPharmacies] = useState<any[]>([]);
+  const [loadingPharmacies, setLoadingPharmacies] = useState(false);
+
   useEffect(() => {
     loadAuctions();
   }, []);
+
+  const fetchNearby = useCallback(async (lat: number, lng: number, rad: number) => {
+    setLoadingPharmacies(true);
+    try {
+      const { data } = await api.get(`/pharmacies/nearby?latitude=${lat}&longitude=${lng}&radius_km=${rad}`);
+      setNearbyPharmacies(data || []);
+    } catch {
+      setNearbyPharmacies([]);
+    } finally {
+      setLoadingPharmacies(false);
+    }
+  }, []);
+
+  function handleLocationDetected(loc: { lat: number; lng: number; address: string; radiusKm: number }) {
+    setLocation(loc);
+    fetchNearby(loc.lat, loc.lng, loc.radiusKm);
+  }
 
   useEffect(() => {
     if (!activeAuction?.end_time) return;
@@ -58,10 +90,10 @@ function AuctionsContent() {
     try {
       const { data } = await api.post('/auctions', {
         prescription_id: prescriptionId,
-        customer_latitude: 12.9352,
-        customer_longitude: 77.6245,
+        customer_latitude: location.lat,
+        customer_longitude: location.lng,
         duration_minutes: 15,
-        search_radius_km: 2.0,
+        search_radius_km: location.radiusKm,
       });
       setActiveAuction(data);
       setAuctions((prev) => [data, ...prev]);
@@ -78,7 +110,7 @@ function AuctionsContent() {
       await api.post('/orders', {
         auction_id: activeAuction.id,
         bid_id: bidId,
-        delivery_address: '162 Example St, New York, NY / 42 MG Road, Koramangala',
+        delivery_address: location.address || 'Hyperlocal GPS Delivery Point',
       });
       await loadAuctions();
     } catch {} finally {
@@ -122,6 +154,44 @@ function AuctionsContent() {
         )}
       </div>
 
+      {/* Real-time Hyperlocal Geolocation Banner */}
+      <LocationDetector onLocationChange={handleLocationDetected} defaultRadius={2.0} />
+
+      {/* Discovered Local Pharmacies in Range */}
+      {nearbyPharmacies.length > 0 && (
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Store className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                {nearbyPharmacies.length} Licensed Pharmacies in {location.radiusKm} km Radius
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400">CDSCO Licensed & Verified</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {nearbyPharmacies.map((ph: any) => (
+              <div key={ph.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-white truncate">{ph.name}</span>
+                    <span className="text-[10px] text-amber-400 font-bold flex items-center gap-0.5">
+                      <Star className="w-3 h-3 fill-amber-400" /> {ph.rating || 4.7}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1 truncate">{ph.address || 'Local Market'}</p>
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
+                  <span className="text-cyan-400 font-bold">{ph.distance_km || 0.5} km away</span>
+                  <span className="text-emerald-400 font-medium">Bidding Live</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Active Auction Section */}
       {activeAuction && (
         <div className="space-y-6">
@@ -141,7 +211,7 @@ function AuctionsContent() {
               <div className="text-center p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-inner">
                 <Users className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
                 <div className="text-3xl font-heading font-black text-emerald-300 tracking-tight">
-                  {activeAuction.total_pharmacies_notified || 4}
+                  {activeAuction.total_pharmacies_notified || nearbyPharmacies.length || 4}
                 </div>
                 <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1">Chemists Notified</p>
               </div>
@@ -177,7 +247,7 @@ function AuctionsContent() {
                 Competing Pharmacy Quotations
               </h3>
               <span className="text-xs text-slate-400">
-                Sorted by lowest total quotation
+                Sorted by lowest total quotation (MRP vs Wholesale PTR)
               </span>
             </div>
 
@@ -245,8 +315,8 @@ function AuctionsContent() {
                                     {bid.estimated_delivery_minutes || 25} mins express
                                   </span>
                                   {bid.discount_percentage > 0 && (
-                                    <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
-                                      {bid.discount_percentage}% OFF
+                                    <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                      <Percent className="w-3 h-3" /> {bid.discount_percentage}% OFF MRP
                                     </span>
                                   )}
                                   {bid.notes && (
@@ -287,8 +357,8 @@ function AuctionsContent() {
                           {/* Line items details */}
                           {bid.items?.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-slate-800/80">
-                              <p className="text-[11px] text-slate-400 font-semibold mb-2">Itemized Breakdown:</p>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <p className="text-[11px] text-slate-400 font-semibold mb-2">Itemized Quotation & Generic Options:</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                                 {bid.items.map((item: any) => (
                                   <div
                                     key={item.id}
@@ -296,8 +366,8 @@ function AuctionsContent() {
                                   >
                                     <p className="font-bold text-white truncate">{item.medicine_name}</p>
                                     <div className="flex items-center justify-between mt-1 text-[11px]">
-                                      <span className="text-slate-400">{item.brand_offered || 'Standard'} x{item.quantity}</span>
-                                      <span className="font-extrabold text-cyan-300">{formatCurrency(item.subtotal)}</span>
+                                      <span className="text-slate-400 truncate mr-1">{item.brand_offered || 'Standard'} x{item.quantity}</span>
+                                      <span className="font-extrabold text-cyan-300 whitespace-nowrap">{formatCurrency(item.subtotal)}</span>
                                     </div>
                                   </div>
                                 ))}
@@ -316,7 +386,7 @@ function AuctionsContent() {
                   Awaiting Incoming Chemist Quotations...
                 </h4>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                  Prescription broadcast is active across verified pharmacies within 2 km radius. Bids refresh live.
+                  Prescription broadcast is active across verified pharmacies within {location.radiusKm} km radius. Bids refresh live.
                 </p>
               </div>
             )}

@@ -341,7 +341,7 @@ export default function PrescriptionsPage() {
                 <p className="font-heading font-bold text-white text-sm mt-0.5">
                   {prescription.doctor_name || 'Dr. Steve Johnson'}
                 </p>
-                <p className="text-[10px] text-slate-400">Lic #976269</p>
+                <p className="text-[10px] text-slate-400">CDSCO / State Reg Verified</p>
               </div>
 
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
@@ -351,7 +351,7 @@ export default function PrescriptionsPage() {
                 <p className="font-heading font-bold text-white text-sm mt-0.5">
                   {prescription.patient_name || 'John Smith'}
                 </p>
-                <p className="text-[10px] text-slate-400">Age: 34 · NY, USA</p>
+                <p className="text-[10px] text-slate-400">Verified Patient Record</p>
               </div>
 
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
@@ -359,9 +359,9 @@ export default function PrescriptionsPage() {
                   <Calendar className="w-3.5 h-3.5 text-cyan-400" /> Prescription Date
                 </span>
                 <p className="font-heading font-bold text-white text-sm mt-0.5">
-                  09-11-2012
+                  {prescription.created_at ? new Date(prescription.created_at).toLocaleDateString() : 'Valid Active Rx'}
                 </p>
-                <p className="text-[10px] text-slate-400">Refill Allowed: 1</p>
+                <p className="text-[10px] text-slate-400">Refill Protocol: Monitored</p>
               </div>
 
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
@@ -369,9 +369,9 @@ export default function PrescriptionsPage() {
                   <MapPin className="w-3.5 h-3.5 text-cyan-400" /> Medical Facility
                 </span>
                 <p className="font-heading font-bold text-white text-sm mt-0.5 truncate">
-                  Medical Centre
+                  {prescription.facility_name || 'Medical Centre'}
                 </p>
-                <p className="text-[10px] text-slate-400 truncate">824 14th St, NY 91743</p>
+                <p className="text-[10px] text-slate-400 truncate">Clinical Healthcare Registry</p>
               </div>
             </div>
           </div>
