@@ -9,6 +9,7 @@ from app.models.user import User, CustomerProfile, UserRole
 from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.deps import get_current_user
+from app.services.sms.sms_service import dispatch_phone_otp, verify_phone_otp_code
 
 router = APIRouter()
 
@@ -88,24 +89,20 @@ async def firebase_login(data: FirebaseLoginRequest, db: AsyncSession = Depends(
 @router.post("/phone-otp/send")
 async def send_phone_otp(data: PhoneOtpSendRequest):
     """
-    Sends an SMS OTP for Indian mobile numbers (+91 XXXXX XXXXX).
-    In demo / development mode, instant code is 123456.
+    Sends a real SMS OTP for Indian mobile numbers (+91 XXXXX XXXXX).
+    Uses Fast2SMS or Twilio if API key is provided.
     """
-    clean_phone = data.phone.replace(" ", "").replace("-", "")
-    return {
-        "status": "success",
-        "phone": clean_phone,
-        "message": "OTP sent successfully to your mobile number",
-        "demo_hint": "123456"
-    }
+    result = dispatch_phone_otp(data.phone)
+    return result
 
 @router.post("/phone-otp/verify", response_model=Token)
 async def verify_phone_otp(data: PhoneOtpVerifyRequest, db: AsyncSession = Depends(get_db)):
     """
-    Verifies SMS OTP code (123456) and issues JWT access token.
+    Verifies dynamic 6-digit SMS OTP code and issues JWT access token.
     """
-    if data.otp_code != "123456":
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please enter 123456.")
+    is_valid, msg = verify_phone_otp_code(data.phone, data.otp_code)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=msg)
     
     clean_phone = data.phone.replace(" ", "").replace("-", "")
     email = f"phone_{clean_phone.replace('+', '')}@medibid.ai"

@@ -131,3 +131,4 @@ export function LocationDetector({ onLocationChange, defaultRadius = 1.0 }: Loca
     </div>
   );
 }
+

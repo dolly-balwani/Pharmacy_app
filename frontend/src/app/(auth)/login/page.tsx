@@ -94,8 +94,13 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to dispatch OTP');
       setOtpSent(true);
-      setOtpHint(data.demo_hint || '123456');
-      setSuccessMsg(`OTP sent to ${data.phone}. Use verification code: ${data.demo_hint || '123456'}`);
+      if (data.gateway_connected) {
+        setOtpHint('');
+        setSuccessMsg(`SMS OTP dispatched to ${data.phone}! Please check your phone messages.`);
+      } else {
+        setOtpHint(data.otp_code || '');
+        setSuccessMsg(`OTP generated for ${data.phone}. (Add FAST2SMS_API_KEY in backend/.env for direct phone SMS)`);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to dispatch OTP');
     } finally {
@@ -308,7 +313,7 @@ export default function LoginPage() {
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-semibold text-slate-300">Enter 6-Digit OTP</label>
                       {otpHint && (
-                        <span className="text-[11px] text-cyan-400 font-mono">Demo Code: {otpHint}</span>
+                        <span className="text-[11px] text-cyan-400 font-mono">Code: {otpHint}</span>
                       )}
                     </div>
                     <div className="relative">

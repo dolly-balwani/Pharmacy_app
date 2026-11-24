@@ -17,3 +17,4 @@ async def get_medicine_catalog():
     Returns the Indian National Drug Pricing Master catalog.
     """
     return INDIAN_MEDICINE_CATALOG
+
