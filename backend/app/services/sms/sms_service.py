@@ -3,6 +3,7 @@ import time
 import secrets
 import logging
 import requests
+from dotenv import load_dotenv
 from typing import Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
@@ -10,10 +11,9 @@ logger = logging.getLogger(__name__)
 # In-memory OTP storage: { phone_number: {"otp": "123456", "expires_at": 1795...} }
 OTP_STORE: Dict[str, Dict[str, Any]] = {}
 
-FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY", "").strip()
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
+def get_env_var(key: str) -> str:
+    load_dotenv(override=True)
+    return os.getenv(key, "").strip()
 
 def clean_phone_number(phone: str) -> Tuple[str, str]:
     """
@@ -39,7 +39,7 @@ def send_real_sms(phone: str, otp_code: str) -> Dict[str, Any]:
     e164_phone, ten_digit = clean_phone_number(phone)
 
     # 1. Check Fast2SMS (Recommended for India)
-    fast2sms_key = os.getenv("FAST2SMS_API_KEY", FAST2SMS_API_KEY)
+    fast2sms_key = get_env_var("FAST2SMS_API_KEY")
     if fast2sms_key:
         try:
             url = "https://www.fast2sms.com/dev/bulkV2"
@@ -61,19 +61,24 @@ def send_real_sms(phone: str, otp_code: str) -> Dict[str, Any]:
                     "message": f"Real SMS OTP dispatched to {e164_phone}"
                 }
             else:
-                logger.warning(f"Fast2SMS error: {data}")
+                raw_msg = data.get("message")
+                if isinstance(raw_msg, list):
+                    raw_msg = ", ".join(raw_msg)
+                err_text = str(raw_msg) or "Fast2SMS rejected dispatch"
+                logger.warning(f"Fast2SMS rejected dispatch: {err_text}")
                 return {
                     "sent": False,
                     "provider": "Fast2SMS",
-                    "error": data.get("message") or "Provider rejected dispatch"
+                    "error": err_text
                 }
         except Exception as e:
             logger.error(f"Fast2SMS request failed: {e}")
+            return {"sent": False, "provider": "Fast2SMS", "error": str(e)}
 
     # 2. Check Twilio (Global)
-    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", TWILIO_ACCOUNT_SID)
-    twilio_token = os.getenv("TWILIO_AUTH_TOKEN", TWILIO_AUTH_TOKEN)
-    twilio_from = os.getenv("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER)
+    twilio_sid = get_env_var("TWILIO_ACCOUNT_SID")
+    twilio_token = get_env_var("TWILIO_AUTH_TOKEN")
+    twilio_from = get_env_var("TWILIO_PHONE_NUMBER")
     if twilio_sid and twilio_token and twilio_from:
         try:
             url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
@@ -132,8 +137,8 @@ def dispatch_phone_otp(phone: str) -> Dict[str, Any]:
         "status": "success",
         "phone": e164_phone,
         "delivery": delivery_status,
-        # Only surface fallback if gateway is not connected yet so testing is never blocked
         "gateway_connected": delivery_status["sent"],
+        "gateway_error": delivery_status.get("error") if not delivery_status["sent"] else None,
         "otp_code": otp_code if not delivery_status["sent"] else None
     }
 
@@ -159,3 +164,4 @@ def verify_phone_otp_code(phone: str, submitted_code: str) -> Tuple[bool, str]:
     OTP_STORE.pop(e164_phone, None)
     OTP_STORE.pop(ten_digit, None)
     return True, "Verification successful"
+

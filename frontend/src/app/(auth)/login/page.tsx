@@ -96,10 +96,14 @@ export default function LoginPage() {
       setOtpSent(true);
       if (data.gateway_connected) {
         setOtpHint('');
-        setSuccessMsg(`SMS OTP dispatched to ${data.phone}! Please check your phone messages.`);
+        setSuccessMsg(`SMS OTP dispatched directly to ${data.phone}! Please check your phone messages.`);
       } else {
         setOtpHint(data.otp_code || '');
-        setSuccessMsg(`OTP generated for ${data.phone}. (Add FAST2SMS_API_KEY in backend/.env for direct phone SMS)`);
+        if (data.gateway_error) {
+          setError(`SMS Gateway Notice: ${data.gateway_error}`);
+        } else {
+          setSuccessMsg(`OTP generated for ${data.phone}. Add FAST2SMS_API_KEY in backend/.env for direct phone SMS.`);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to dispatch OTP');
@@ -323,7 +327,7 @@ export default function LoginPage() {
                         maxLength={6}
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                        placeholder="123456"
+                        placeholder="• • • • • •"
                         required
                         className="w-full pl-10 pr-4 h-11 rounded-xl border border-cyan-500/40 bg-slate-900/90 text-center tracking-widest font-mono text-lg text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                       />
